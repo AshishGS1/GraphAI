@@ -1,0 +1,25 @@
+[project]
+name = "graphai"
+version = "0.1.0"
+description = "FastAPI service: Gemini tool-calling loop over the EmpMCP server"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "fastmcp>=4.0",
+    "google-genai>=1.0",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.2",
+    "agent-framework-core==1.23.0",
+    "typing_extensions>=4.8",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+graphai = "graphai.__main__:main"
