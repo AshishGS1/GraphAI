@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     mcp_url: str = "http://127.0.0.1:8001/mcp"
 
+    max_llm_calls: int = Field(10, ge=1)
+
     agent_host: str = "127.0.0.1"
     agent_port: int = Field(8002, ge=1, le=65535)
     log_level: str = "INFO"

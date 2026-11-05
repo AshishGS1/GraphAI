@@ -45,6 +45,7 @@ async def run(req: RunRequest, request: Request) -> RunResponse:
                 mcp=mcp,
                 mcp_tools=await mcp.list_tools(),
                 mcp_instructions=_server_instructions(mcp),
+                max_llm_calls=settings.max_llm_calls,
             )
             result = await build_workflow(deps).run(req.prompt)
     except Exception as exc:

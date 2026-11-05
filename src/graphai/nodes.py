@@ -92,7 +92,9 @@ class ReviewerAgent(Executor):
         result = await review(
             prompt=run.prompt, trace=run.trace, run_id=deps.run_id, gemini=deps.gemini,
             model=deps.model, mcp_tools=deps.mcp_tools, mcp_instructions=deps.mcp_instructions,
+            max_llm_calls=deps.max_llm_calls,
         )
+        run.llm_calls += result.llm_calls
         ctx.set_state("run", run)
         if result.request is not None:
             await ctx.send_message(result.request)
@@ -134,6 +136,7 @@ class Finalize(Executor):
             route=run.route,
             answer=outcome.answer,
             message=outcome.message,
+            llm_calls=run.llm_calls,
             model=self.deps.model,
             tool_call=run.trace,
             run_id=self.deps.run_id,

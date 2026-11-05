@@ -40,6 +40,7 @@ class RunDeps:
     mcp: Client
     mcp_tools: list[Any]
     mcp_instructions: str | None
+    max_llm_calls: int
 
 
 @dataclass
@@ -78,6 +79,7 @@ class AgentOutcome:
 
 @dataclass
 class ReviewResult:
+    llm_calls: int
     request: ToolRequest | None = None
     answer: str | None = None
     message: str | None = None
@@ -90,6 +92,7 @@ class RunResponse(BaseModel):
     message: str | None = Field(
         None, description="Set when status is not 'completed', or when the run was cut short."
     )
+    llm_calls: int = Field(description="Every Gemini call: router + reviewer calls.")
     model: str
     tool_call: list[ToolCallTrace]
     run_id: str
