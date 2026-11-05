@@ -84,7 +84,7 @@ async def review(
     if call.name not in TOOL_ROUTES:
         reason = f"it asked for an unknown tool '{call.name}'"
     elif len(trace) >= max_llm_calls:
-        reason = f"the tool-call limit ({max_llm_calls}) was reached"
+        reason = f"the llm-call limit ({max_llm_calls}) was reached"
     elif any(t.tool == call.name and json.dumps(t.arguments, sort_keys=True, default=str) == key for t in trace):
         reason = f"it repeated an identical call to {call.name}"
     if reason is None:
