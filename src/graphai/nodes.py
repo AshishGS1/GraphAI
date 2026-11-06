@@ -11,8 +11,9 @@ from typing_extensions import Never
 
 from graphai.models import (
     AgentOutcome, CallDone, RouteDecision, RunDeps, RunResponse, RunState,
-    ToolCallTrace, ToolRequest,
+    RunEvent, ToolCallTrace, ToolRequest,
 )
+from graphai.events import emit
 from graphai.services.route import route_prompt
 from graphai.services.review import review
 from graphai.services.tool_call import clean_args, missing_required, run_tool_call
@@ -29,9 +30,11 @@ class RouterAgent(Executor):
         self.router_prompt = build_router_prompt(deps.mcp_tools)
 
     @handler
-    async def route(self, prompt: str, ctx: WorkflowContext[RouteDecision]) -> None:
+    async def route(self, prompt: str, ctx: WorkflowContext[RouteDecision, RunEvent]) -> None:
         run = RunState(prompt=prompt)
+        await emit(ctx, self.deps.run_id, self.id, "llm_called", model=self.deps.model, purpose="route")
         decision = await route_prompt(self.deps.gemini, self.deps.model, prompt, self.router_prompt)
+        await emit(ctx, self.deps.run_id, self.id, "llm_responded", route=decision.route)
         run.route, run.llm_calls = decision.route, 1
         ctx.set_state("run", run)
         await ctx.send_message(decision)
@@ -86,13 +89,15 @@ class ReviewerAgent(Executor):
         self.deps = deps
 
     @handler
-    async def review(self, _done: CallDone, ctx: WorkflowContext[ToolRequest | AgentOutcome]) -> None:
+    async def review(self, _done: CallDone, ctx: WorkflowContext[ToolRequest | AgentOutcome, RunEvent]) -> None:
         deps = self.deps
         run: RunState = ctx.get_state("run")
+        async def on_event(kind: str, **detail) -> None:
+            await emit(ctx, deps.run_id, self.id, kind, **detail)
         result = await review(
             prompt=run.prompt, trace=run.trace, run_id=deps.run_id, gemini=deps.gemini,
             model=deps.model, mcp_tools=deps.mcp_tools, mcp_instructions=deps.mcp_instructions,
-            max_llm_calls=deps.max_llm_calls,
+            max_llm_calls=deps.max_llm_calls, on_event=on_event,
         )
         run.llm_calls += result.llm_calls
         ctx.set_state("run", run)

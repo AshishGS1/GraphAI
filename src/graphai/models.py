@@ -54,6 +54,15 @@ class RunState:
 
 
 @dataclass
+class RunEvent:
+    """Progress event yielded into the workflow stream (type 'intermediate')."""
+
+    kind: Literal["llm_called", "llm_responded", "tool_called", "tool_completed"]
+    run_id: str
+    detail: dict[str, Any]
+
+
+@dataclass
 class ToolRequest:
     """ReviewerAgent -> tool agent: run this tool next."""
 

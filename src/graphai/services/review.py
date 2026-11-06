@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from google import genai
 from google.genai import types
@@ -55,6 +55,7 @@ async def review(
     mcp_tools: list[Any],
     mcp_instructions: str | None,
     max_llm_calls: int,
+    on_event: Callable[..., Awaitable[None]],
 ) -> ReviewResult:
     system = "\n\n".join(filter(None, [mcp_instructions, REVIEWER_PROMPT]))
     tools = _declarations(mcp_tools)
@@ -65,17 +66,19 @@ async def review(
             system_instruction=system + extra,
             tools=tools,
         )
-
+    await on_event("llm_called", model=model, purpose="decide_or_answer", hop=len(trace))
     response = await gemini.aio.models.generate_content(
         model=model, contents=body, config=config()
     )
     calls = response.function_calls
     if not calls:
         text = _text(response)
+        await on_event("llm_responded", wants="final answer", empty=not text)
         if not text:
             return ReviewResult(1, message="Gemini returned no text.")
         return ReviewResult(1, answer=text)
-    call=calls[0]
+    call = calls[0]
+    await on_event("llm_responded", wants=call.name)
 
     args = clean_args(dict(call.args or {}))
     key = json.dumps(args, sort_keys=True, default=str)
@@ -88,10 +91,10 @@ async def review(
     elif any(t.tool == call.name and json.dumps(t.arguments, sort_keys=True, default=str) == key for t in trace):
         reason = f"it repeated an identical call to {call.name}"
     if reason is None:
-        logger.info("run=%s reviewer -> %s %s", run_id, call.name, args)
         return ReviewResult(1, request=ToolRequest(call.name, args))
 
     logger.warning("run=%s reviewer wanted %s %s but %s; forcing an answer", run_id, call.name, args, reason)
+    await on_event("llm_called", model=model, purpose="forced_answer", reason=reason)
     forced = await gemini.aio.models.generate_content(
         model=model,
         contents=f"{body}\n\n(The call {call.name}({json.dumps(args, default=str)}) was NOT run.)",
@@ -99,6 +102,7 @@ async def review(
     )
     note = f"Stopped early because {reason}; the answer uses only the data gathered so far."
     text = _text(forced)
+    await on_event("llm_responded", wants="final answer", empty=not text)
     if not text:
         return ReviewResult(2, message=note + " Gemini returned no text.")
     return ReviewResult(2, answer=text, message=note)

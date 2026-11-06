@@ -6,6 +6,7 @@
     ReviewerAgent --(switch on tool name)--> a tool executor   (another call is needed)
     ReviewerAgent --> Finalize                  (final answer)
     OffTopic --> Finalize
+    Events: router and the reviewer yield RunEvents (see events.py).
 """
 
 from agent_framework import (
@@ -28,7 +29,9 @@ def build_workflow(deps: RunDeps):
     off_topic = OffTopic()
     finalize = Finalize(deps)
 
-    builder = WorkflowBuilder(start_executor=router, name="graphai")
+    builder = WorkflowBuilder(
+        start_executor=router, name="graphai", output_from=[finalize], intermediate_output_from="all_other",
+        )
     builder.add_switch_case_edge_group(router, [
         Case(condition=lambda d: d.route == SEARCH_EMPLOYEES, target=search),
         Case(condition=lambda d: d.route == GET_EMPLOYEE_DETAILS, target=details),
